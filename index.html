@@ -62,7 +62,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>Velero Backup Dashboard - FTD</h1>
+            <h1>🔐 Velero Backup Dashboard - FTD</h1>
             <div class="controls">
                 <span id="statusBadge" class="status-badge status-online">🟢 Online</span>
                 <button class="btn btn-primary" onclick="loadData()">🔄 Atualizar</button>
@@ -140,6 +140,7 @@
 
     <script>
         const DATA_URL = 'data/data.json';
+        const AZURE_FUNCTION_URL = 'https://velero-delete-function.azurewebsites.net/api/delete-backup';
         
         const clusterInfo = {
             'DEV': { name: 'aks-core-dev', resourceGroup: 'rg-core-capabilities-aks-dev', subscription: '57fb5e7c-3a3c-459f-857d-3914d34e6062', location: 'Brazil South' },
@@ -189,7 +190,6 @@
         }
 
         function calculateCost(storageGB, backupCount) {
-            // Se storage_gb vier 0, estimar baseado no número de backups (~1GB por backup)
             const estimatedGB = storageGB > 0 ? storageGB : (backupCount * 1);
             const costUSD = estimatedGB * 0.02;
             const costBRL = costUSD * 5.0;
@@ -330,33 +330,60 @@
             }
         }
 
-        // ✅ FUNÇÃO CORRIGIDA: Abre GitHub Actions com instruções
-        function confirmDelete() {
+        // ✅ FUNÇÃO CORRIGIDA: Delete via Azure Function (URL sem espaços)
+        async function confirmDelete() {
             if (!deleteEnv || !deleteBackup) {
                 alert('❌ Erro: Backup não identificado!');
                 return;
             }
 
-            const instructions = `📋 Para excluir o backup, siga estes passos:\n\n` +
-                                `1️⃣ Acesse: https://github.com/laguirre06/velero-dashboard-ftd/actions\n\n` +
-                                `2️⃣ Clique em: "Delete Velero Backup"\n\n` +
-                                `3️⃣ Clique em: "Run workflow" (botão verde)\n\n` +
-                                `4️⃣ Preencha os campos:\n` +
-                                `   • Environment: ${deleteEnv}\n` +
-                                `   • Backup name: ${deleteBackup}\n\n` +
-                                `5️⃣ Clique em "Run workflow"\n\n` +
-                                `✅ O workflow será executado e o backup excluído em ~2-3 minutos!\n\n` +
-                                `🔄 O dashboard atualizará automaticamente após a exclusão.`;
+            try {
+                const response = await fetch(AZURE_FUNCTION_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        environment: deleteEnv,
+                        backup_name: deleteBackup
+                    })
+                });
 
-            if (confirm(instructions)) {
-                // Abrir página de actions em nova aba
-                window.open('https://github.com/laguirre06/velero-dashboard-ftd/actions/workflows/delete-backup.yml', '_blank');
+                const result = await response.json();
+
+                if (result.success) {
+                    alert(`✅ Exclusão iniciada!\n\nBackup: ${deleteBackup}\nAmbiente: ${deleteEnv}\n\nAcompanhe em:\nhttps://github.com/laguirre06/velero-dashboard-ftd/actions`);
+                    closeModal('deleteModal');
+                    
+                    let attempts = 0;
+                    const checkInterval = setInterval(async () => {
+                        attempts++;
+                        await loadData();
+                        
+                        if (currentData && currentData[deleteEnv]) {
+                            const stillExists = currentData[deleteEnv].backups.some(b => b.name === deleteBackup);
+                            if (!stillExists) {
+                                clearInterval(checkInterval);
+                                alert(`✅ Backup ${deleteBackup} excluído com sucesso!`);
+                            }
+                        }
+                        if (attempts >= 20) clearInterval(checkInterval);
+                    }, 15000);
+                    
+                } else {
+                    throw new Error(result.error || 'Failed to trigger delete');
+                }
+            } catch (error) {
+                // Fallback manual se Azure Function falhar
+                const fallbackMsg = `⚠️ Não foi possível conectar ao serviço automático.\n\nDeseja excluir manualmente via GitHub Actions?`;
+                if (confirm(fallbackMsg)) {
+                    window.open('https://github.com/laguirre06/velero-dashboard-ftd/actions/workflows/delete-backup.yml', '_blank');
+                }
+                alert('❌ Erro: ' + error.message);
             }
-            
-            closeModal('deleteModal');
         }
 
-        //Abre GitHub Actions com instruções
+        // ✅ FUNÇÃO CORRIGIDA: Criar Backup (URL sem espaços)
         function createBackup(event) {
             event.preventDefault();
             
@@ -364,6 +391,11 @@
             const namespace = document.getElementById('createNamespace').value;
             const backupName = document.getElementById('createName').value || `(automático: ${env.toLowerCase()}-manual-${new Date().toISOString().slice(0,16).replace(/[-:]/g,'')})`;
             const ttl = document.getElementById('createTTL').value;
+
+            if (!env) {
+                alert('❌ Selecione um ambiente!');
+                return;
+            }
 
             const instructions = `📋 Para criar o backup, siga estes passos:\n\n` +
                                 `1️⃣ Acesse: https://github.com/laguirre06/velero-dashboard-ftd/actions\n\n` +
@@ -379,7 +411,6 @@
                                 `🔄 O dashboard atualizará automaticamente após a criação.`;
 
             if (confirm(instructions)) {
-                // Abrir página de actions em nova aba
                 window.open('https://github.com/laguirre06/velero-dashboard-ftd/actions/workflows/create-backup.yml', '_blank');
             }
             
