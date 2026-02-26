@@ -11,17 +11,17 @@
         .container { max-width: 1400px; margin: 0 auto; }
         .header { background: white; padding: 30px; border-radius: 15px; margin-bottom: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
         .header h1 { color: #667eea; margin-bottom: 10px; }
-        .header p { color: #666; margin-bottom: 15px; }
         .controls { display: flex; gap: 15px; align-items: center; flex-wrap: wrap; margin-top: 15px; }
         .btn { padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: bold; transition: all 0.3s; }
         .btn-primary { background: #667eea; color: white; }
-        .btn-primary:hover { background: #5568d3; transform: translateY(-2px); }
+        .btn-success { background: #28a745; color: white; }
+        .btn-danger { background: #dc3545; color: white; }
+        .btn-warning { background: #ffc107; color: #333; }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0,0,0,0.2); }
         .status-badge { padding: 5px 15px; border-radius: 20px; font-size: 12px; font-weight: bold; }
         .status-online { background: #d4edda; color: #155724; }
-        .status-updating { background: #fff3cd; color: #856404; }
         .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px; }
-        .stat-card { background: white; padding: 25px; border-radius: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); text-align: center; transition: transform 0.3s; }
-        .stat-card:hover { transform: translateY(-5px); }
+        .stat-card { background: white; padding: 25px; border-radius: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); text-align: center; }
         .stat-number { font-size: 42px; font-weight: bold; color: #667eea; margin-bottom: 5px; }
         .stat-label { color: #666; font-size: 13px; }
         .env-section { background: white; padding: 30px; border-radius: 15px; margin-bottom: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
@@ -29,71 +29,65 @@
         .env-dev { border-color: #107c10; }
         .env-hom { border-color: #ff8c00; }
         .env-prod { border-color: #d83b01; }
-        .env-title { font-size: 22px; font-weight: bold; }
-        .chart-container { position: relative; height: 250px; margin: 20px 0; }
-        .backup-list { max-height: 400px; overflow-y: auto; }
-        .backup-item { background: #f8f9fa; padding: 15px; margin: 10px 0; border-radius: 8px; border-left: 4px solid #667eea; cursor: pointer; transition: all 0.3s; }
-        .backup-item:hover { background: #e9ecef; transform: translateX(5px); }
-        .backup-name { font-weight: bold; color: #333; margin-bottom: 5px; font-size: 14px; }
-        .backup-meta { font-size: 11px; color: #666; line-height: 1.6; }
-        .status-badge-small { display: inline-block; padding: 3px 10px; border-radius: 10px; font-size: 10px; font-weight: bold; margin-left: 5px; }
+        .backup-item { background: #f8f9fa; padding: 15px; margin: 10px 0; border-radius: 8px; border-left: 4px solid #667eea; }
+        .backup-name { font-weight: bold; color: #333; margin-bottom: 5px; }
+        .backup-actions { margin-top: 10px; display: flex; gap: 10px; }
+        .backup-actions .btn { padding: 5px 15px; font-size: 12px; }
+        .status-badge-small { display: inline-block; padding: 3px 10px; border-radius: 10px; font-size: 10px; font-weight: bold; }
         .status-completed { background: #d4edda; color: #155724; }
-        .status-failed { background: #f8d7da; color: #721c24; }
-        .status-progress { background: #fff3cd; color: #856404; }
         .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); }
-        .modal-content { background: white; margin: 5% auto; padding: 30px; border-radius: 15px; max-width: 800px; max-height: 80vh; overflow-y: auto; }
-        .close { float: right; font-size: 28px; font-weight: bold; cursor: pointer; color: #999; }
-        .close:hover { color: #333; }
-        .loading { text-align: center; padding: 40px; color: #666; }
-        .error { color: #d83b01; background: #ffe6e6; padding: 15px; border-radius: 8px; margin: 10px 0; font-size: 13px; }
-        .filter-section { background: white; padding: 20px; border-radius: 15px; margin-bottom: 20px; }
-        .filter-section label { margin-right: 15px; font-weight: 500; }
-        .filter-section input[type="text"], .filter-section select { padding: 8px 12px; border: 1px solid #ddd; border-radius: 5px; margin-right: 10px; }
-        @media (max-width: 768px) { .stats-grid { grid-template-columns: 1fr; } .env-header { flex-direction: column; align-items: flex-start; gap: 10px; } .controls { flex-direction: column; align-items: stretch; } }
+        .modal-content { background: white; margin: 5% auto; padding: 30px; border-radius: 15px; max-width: 600px; }
+        .close { float: right; font-size: 28px; cursor: pointer; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: bold; }
+        .form-group input, .form-group select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; }
+        .loading { text-align: center; padding: 40px; }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>Velero Backup Dashboard - FTD</h1>
-            <p>Monitoramento visual dos backups DEV/HOM/PROD</p>
+            <h1>🔐 Velero Backup Dashboard - FTD</h1>
             <div class="controls">
-                <span id="statusBadge" class="status-badge status-updating">🟡 Atualizando...</span>
-                <button class="btn btn-primary" onclick="loadData()">🔄 Atualizar Agora</button>
-                <span id="lastUpdate" style="color: #999; font-size: 12px; margin-left: auto;"></span>
+                <span id="statusBadge" class="status-badge status-online">🟢 Online</span>
+                <button class="btn btn-primary" onclick="loadData()">🔄 Atualizar</button>
+                <button class="btn btn-success" onclick="showCreateModal()">➕ Criar Backup</button>
             </div>
         </div>
 
-        <div class="filter-section">
-            <label>🔍 Filtrar:</label>
-            <input type="text" id="searchBackup" placeholder="Buscar backup por nome..." onkeyup="filterBackups()">
-            <select id="filterStatus" onchange="filterBackups()">
-                <option value="">Todos os status</option>
-                <option value="Completed">Completos</option>
-                <option value="Failed">Falhos</option>
-                <option value="InProgress">Em Progresso</option>
-            </select>
-            <label><input type="checkbox" id="showDEV" checked onchange="toggleEnv('DEV')"> DEV</label>
-            <label><input type="checkbox" id="showHOM" checked onchange="toggleEnv('HOM')"> HOM</label>
-            <label><input type="checkbox" id="showPROD" checked onchange="toggleEnv('PROD')"> PROD</label>
-        </div>
-
         <div class="stats-grid">
-            <div class="stat-card"><div class="stat-number" id="totalBackups">-</div><div class="stat-label">Total Backups (7 dias)</div></div>
+            <div class="stat-card"><div class="stat-number" id="totalBackups">-</div><div class="stat-label">Total Backups</div></div>
             <div class="stat-card"><div class="stat-number" id="successRate">-</div><div class="stat-label">Taxa de Sucesso</div></div>
             <div class="stat-card"><div class="stat-number" id="totalStorage">-</div><div class="stat-label">Storage Usado</div></div>
-            <div class="stat-card"><div class="stat-number" id="activeEnvs">-</div><div class="stat-label">Ambientes</div></div>
         </div>
 
-        <div id="environments"><div class="loading">Carregando dados...</div></div>
+        <div id="environments"></div>
     </div>
 
-    <!-- Modal para detalhes -->
-    <div id="backupModal" class="modal">
+    <!-- Modal Criar Backup -->
+    <div id="createModal" class="modal">
         <div class="modal-content">
-            <span class="close" onclick="closeModal()">&times;</span>
-            <h2 id="modalTitle">Detalhes do Backup</h2>
-            <pre id="modalContent" style="background: #f8f9fa; padding: 15px; border-radius: 8px; overflow-x: auto;"></pre>
+            <span class="close" onclick="closeModal('createModal')">&times;</span>
+            <h2>➕ Criar Novo Backup</h2>
+            <form onsubmit="createBackup(event)">
+                <div class="form-group">
+                    <label>Ambiente:</label>
+                    <select id="createEnv" required>
+                        <option value="DEV">DEV</option>
+                        <option value="HOM">HOM</option>
+                        <option value="PROD">PROD</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Namespace (opcional):</label>
+                    <input type="text" id="createNamespace" placeholder="* para todos">
+                </div>
+                <div class="form-group">
+                    <label>Nome do Backup (opcional):</label>
+                    <input type="text" id="createName" placeholder="Gera automático se vazio">
+                </div>
+                <button type="submit" class="btn btn-success">✅ Criar Backup</button>
+            </form>
         </div>
     </div>
 
@@ -103,16 +97,9 @@
         let charts = {};
         let currentData = null;
 
-        // Auto-refresh a cada 60 segundos
-        setInterval(() => {
-            loadData(true);
-        }, 60000);
+        setInterval(() => loadData(), 60000);
 
-        async function loadData(isAutoRefresh = false) {
-            if (!isAutoRefresh) {
-                updateStatus('updating');
-            }
-            
+        async function loadData() {
             try {
                 const response = await fetch(DATA_URL + '?t=' + Date.now());
                 if (!response.ok) throw new Error('HTTP ' + response.status);
@@ -120,163 +107,95 @@
                 renderDashboard(currentData);
                 updateStatus('online');
             } catch (error) {
-                console.error('Erro ao carregar dados:', error);
-                document.getElementById('environments').innerHTML = '<div class="error">Erro ao carregar dados. Clique em "Atualizar Agora" para tentar novamente.</div>';
+                console.error('Erro:', error);
                 updateStatus('offline');
             }
         }
 
         function updateStatus(status) {
             const badge = document.getElementById('statusBadge');
-            if (status === 'online') {
-                badge.className = 'status-badge status-online';
-                badge.textContent = '🟢 Online';
-            } else if (status === 'updating') {
-                badge.className = 'status-badge status-updating';
-                badge.textContent = '🟡 Atualizando...';
-            } else {
-                badge.className = 'status-badge';
-                badge.style.background = '#f8d7da';
-                badge.style.color = '#721c24';
-                badge.textContent = '🔴 Offline';
-            }
-            document.getElementById('lastUpdate').textContent = 'Última atualização: ' + new Date().toLocaleString('pt-BR');
-        }
-
-        function toggleEnv(env) {
-            const element = document.getElementById('section-' + env.toLowerCase());
-            const checkbox = document.getElementById('show' + env);
-            if (element) {
-                element.style.display = checkbox.checked ? 'block' : 'none';
-            }
-        }
-
-        function filterBackups() {
-            if (!currentData) return;
-            renderDashboard(currentData);
+            badge.className = 'status-badge ' + (status === 'online' ? 'status-online' : '');
+            badge.textContent = status === 'online' ? '🟢 Online' : '🔴 Offline';
         }
 
         function renderDashboard(data) {
             const container = document.getElementById('environments');
             container.innerHTML = '';
             
-            const searchTerm = document.getElementById('searchBackup').value.toLowerCase();
-            const statusFilter = document.getElementById('filterStatus').value;
-
-            let totalBackups = 0, totalSuccess = 0, totalFailed = 0, totalStorage = 0, activeEnvs = 0;
+            let totalBackups = 0, totalSuccess = 0, totalStorage = 0;
 
             environments.forEach(env => {
                 const envData = data[env] || { backups: [], storage_gb: 0 };
-                let filteredBackups = envData.backups || [];
-
-                // Aplicar filtros
-                if (searchTerm) {
-                    filteredBackups = filteredBackups.filter(b => (b.name || '').toLowerCase().includes(searchTerm));
-                }
-                if (statusFilter) {
-                    filteredBackups = filteredBackups.filter(b => (b.status || '') === statusFilter);
-                }
-
-                const backupStats = filteredBackups.reduce((acc, b) => { 
-                    acc.total++; 
-                    if (b.status === 'Completed') acc.completed++; 
-                    if (b.status === 'Failed') acc.failed++; 
-                    return acc; 
-                }, { total: 0, completed: 0, failed: 0 });
-
-                totalBackups += backupStats.total; 
-                totalSuccess += backupStats.completed; 
-                totalFailed += backupStats.failed; 
-                totalStorage += envData.storage_gb || 0; 
-                if (filteredBackups.length > 0) activeEnvs++;
+                const backups = envData.backups || [];
+                
+                totalBackups += backups.length;
+                totalSuccess += backups.filter(b => b.status === 'Completed').length;
+                totalStorage += envData.storage_gb || 0;
 
                 const envDiv = document.createElement('div');
                 envDiv.className = 'env-section env-' + env.toLowerCase();
-                envDiv.id = 'section-' + env.toLowerCase();
                 
-                const backupListHtml = filteredBackups.length > 0 
-                    ? filteredBackups.map(b => 
-                        '<div class="backup-item" onclick="showBackupDetails(\'' + env + '\', \'' + (b.name || '').replace(/'/g, "\\'") + '\')">' +
-                        '<div class="backup-name">📦 ' + (b.name || 'Unknown') + '</div>' +
-                        '<div class="backup-meta">' +
-                        '🕐 ' + (b.created ? new Date(b.created).toLocaleString('pt-BR') : 'N/A') + '<br>' +
-                        '📁 ' + ((b.namespaces && b.namespaces.join) ? b.namespaces.join(', ') : 'Todos') + '<br>' +
-                        '✅ Status: <span class="status-badge-small status-' + (b.status ? b.status.toLowerCase() : 'unknown') + '">' + (b.status || 'Unknown') + '</span>' +
-                        '</div></div>'
-                      ).join('')
-                    : '<div style="color:#999;font-size:13px;padding:20px;text-align:center">Nenhum backup encontrado</div>';
+                const backupListHtml = backups.length > 0 
+                    ? backups.map(b => `
+                        <div class="backup-item">
+                            <div class="backup-name">📦 ${b.name}</div>
+                            <div style="font-size: 12px; color: #666;">
+                                🕐 ${new Date(b.created).toLocaleString('pt-BR')}<br>
+                                📁 ${b.namespaces?.join(', ') || 'Todos'}<br>
+                                ✅ Status: <span class="status-badge-small status-${b.status.toLowerCase()}">${b.status}</span>
+                            </div>
+                            <div class="backup-actions">
+                                <button class="btn btn-warning" onclick="alert('Funcionalidade em desenvolvimento: Restore do backup ${b.name}')">🔄 Restaurar</button>
+                                <button class="btn btn-danger" onclick="alert('Funcionalidade em desenvolvimento: Delete do backup ${b.name}')">🗑️ Excluir</button>
+                            </div>
+                        </div>
+                      `).join('')
+                    : '<div style="padding: 20px; text-align: center; color: #999;">Nenhum backup encontrado</div>';
 
-                envDiv.innerHTML = 
-                    '<div class="env-header env-' + env.toLowerCase() + '">' +
-                    '<div class="env-title">🔹 ' + env + '</div>' +
-                    '<div style="font-size:13px;color:#666">Storage: <strong>' + (envData.storage_gb || 0).toFixed(1) + ' GB</strong> | Backups: <strong>' + filteredBackups.length + '</strong></div>' +
-                    '</div>' +
-                    '<div style="display:grid;grid-template-columns:1fr 1.5fr;gap:20px;align-items:start">' +
-                    '<div class="chart-container"><canvas id="chart-' + env + '"></canvas></div>' +
-                    '<div class="backup-list">' + backupListHtml + '</div>' +
-                    '</div>';
+                envDiv.innerHTML = `
+                    <div class="env-header env-${env.toLowerCase()}">
+                        <div style="font-size: 20px; font-weight: bold;">🔹 ${env}</div>
+                        <div>Storage: <strong>${(envData.storage_gb || 0).toFixed(1)} GB</strong> | Backups: <strong>${backups.length}</strong></div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 20px;">
+                        <div style="text-align: center; padding: 20px;">
+                            <div style="font-size: 48px; font-weight: bold; color: ${env === 'DEV' ? '#107c10' : env === 'HOM' ? '#ff8c00' : '#d83b01'};">
+                                ${backups.filter(b => b.status === 'Completed').length}/${backups.length}
+                            </div>
+                            <div style="color: #666;">Sucesso/Total</div>
+                        </div>
+                        <div>${backupListHtml}</div>
+                    </div>
+                `;
                 
                 container.appendChild(envDiv);
-                createChart(env, backupStats);
             });
 
             document.getElementById('totalBackups').textContent = totalBackups;
             document.getElementById('successRate').textContent = totalBackups > 0 ? ((totalSuccess/totalBackups)*100).toFixed(0) + '%' : '0%';
-            document.getElementById('totalStorage').textContent = (totalStorage || 0).toFixed(1) + ' GB';
-            document.getElementById('activeEnvs').textContent = activeEnvs;
+            document.getElementById('totalStorage').textContent = totalStorage.toFixed(1) + ' GB';
         }
 
-        function createChart(env, stats) {
-            const ctx = document.getElementById('chart-' + env); 
-            if (!ctx) return; 
-            if (charts[env]) charts[env].destroy();
-            
-            const inProgress = Math.max(0, (stats.total || 0) - (stats.completed || 0) - (stats.failed || 0));
-            
-            charts[env] = new Chart(ctx, { 
-                type: 'doughnut', 
-                data: { 
-                    labels: ['Sucesso','Falhas','Em Progresso'], 
-                    datasets: [{ 
-                        data: [(stats.completed || 0), (stats.failed || 0), inProgress], 
-                        backgroundColor: ['#107c10','#d83b01','#ff8c00'], 
-                        borderWidth: 0 
-                    }] 
-                }, 
-                options: { 
-                    responsive: true, 
-                    maintainAspectRatio: false, 
-                    cutout: '70%', 
-                    plugins: { 
-                        legend: { position: 'bottom', labels: { font: { size: 10 } } } 
-                    } 
-                } 
-            });
+        function showCreateModal() {
+            document.getElementById('createModal').style.display = 'block';
         }
 
-        function showBackupDetails(env, backupName) {
-            if (!currentData || !currentData[env]) return;
-            const backup = currentData[env].backups.find(b => b.name === backupName);
-            if (!backup) return;
-
-            document.getElementById('modalTitle').textContent = 'Detalhes do Backup: ' + backupName;
-            document.getElementById('modalContent').textContent = JSON.stringify(backup, null, 2);
-            document.getElementById('backupModal').style.display = 'block';
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
         }
 
-        function closeModal() {
-            document.getElementById('backupModal').style.display = 'none';
+        async function createBackup(event) {
+            event.preventDefault();
+            alert('Funcionalidade será implementada via GitHub Actions workflow!');
+            closeModal('createModal');
         }
 
-        // Fechar modal ao clicar fora
         window.onclick = function(event) {
-            const modal = document.getElementById('backupModal');
-            if (event.target == modal) {
-                closeModal();
+            if (event.target.classList.contains('modal')) {
+                event.target.style.display = 'none';
             }
         }
 
-        // Carregar ao iniciar
         window.onload = () => loadData();
     </script>
 </body>
