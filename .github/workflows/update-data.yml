@@ -17,7 +17,7 @@ jobs:
     - name: Setup Azure CLI
       uses: azure/login@v1
       with:
-        crens: ${{ secrets.AZURE_CREDENTIALS }}
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
 
     - name: Setup kubectl
       uses: azure/setup-kubectl@v3
