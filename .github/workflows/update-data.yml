@@ -42,10 +42,38 @@ jobs:
             PROD) cluster="aks-core-prod"; sub="6c737912-b263-4f31-86a4-8f93c351fcac"; storage="aksbackupprod25668" ;;
           esac
           
-          az aks get-credentials --name $cluster --subscription $sub --overwrite-existing 2>/dev/null || true
-          backups=$(velero backup get -o json --since 168h 2>/dev/null | jq -c '[.items[] | { name: .metadata.name, status: (.status.phase // "Unknown"), created: .metadata.creationTimestamp, namespaces: (.spec.includedNamespaces // ["*"])}]' 2>/dev/null || echo '[]')
+          echo "Processing $env ($cluster)..."
+          
+          # Conectar ao cluster
+          if ! az aks get-credentials --name $cluster --subscription $sub --overwrite-existing; then
+            echo "Warning: Could not connect to cluster $cluster"
+          fi
+          
+          # Buscar backups do Velero
+          echo "Fetching Velero backups..."
+          if velero_output=$(velero backup get -o json --since 168h 2>&1); then
+            echo "Velero output received"
+            # Processar com jq
+            backups=$(echo "$velero_output" | jq -c '[.items[] | { name: .metadata.name, status: (.status.phase // "Unknown"), created: .metadata.creationTimestamp, namespaces: (.spec.includedNamespaces // ["*"])}]' 2>/dev/null || echo '[]')
+          else
+            echo "Warning: Velero command failed or no backups found"
+            backups='[]'
+          fi
+          
+          # Garantir que backups seja um array válido
+          if [ -z "$backups" ] || [ "$backups" = "null" ]; then
+            backups='[]'
+          fi
+          
+          # Buscar storage usage
+          echo "Fetching storage data..."
           blob_count=$(az storage blob list --account-name $storage --container-name velero-backups --query "length(@)" -o tsv 2>/dev/null || echo "0")
+          if [ -z "$blob_count" ] || [ "$blob_count" = "null" ]; then
+            blob_count=0
+          fi
           storage_gb=$(echo "scale=1; $blob_count * 0.001" | bc 2>/dev/null || echo "0")
+          
+          echo "Backups: $backups, Storage: ${storage_gb} GB"
           
           comma=""
           [ "$env" != "PROD" ] && comma=","
@@ -53,6 +81,9 @@ jobs:
         done
         
         echo "}" >> data/data.json
+        
+        echo "Final data.json:"
+        cat data/data.json
 
     - name: Commit and push if changed
       run: |
