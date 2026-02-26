@@ -1,10 +1,43 @@
+name: Update Velero Backup Data
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update-
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Azure CLI
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    - name: Setup kubectl
+      uses: azure/setup-kubectl@v3
+
+    - name: Install Velero CLI
+      run: |
+        wget -q -O velero.tar.gz https://github.com/vmware-tanzu/velero/releases/download/v1.17.2/velero-v1.17.2-linux-amd64.tar.gz
+        tar -xzf velero.tar.gz
+        sudo mv velero-v1.17.2-linux-amd64/velero /usr/local/bin/
+        rm -rf velero.tar.gz velero-v1.17.2-linux-amd64
+
     - name: Collect backup data
       run: |
         mkdir -p data
         echo "{" > data/data.json
         echo "  \"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"," >> data/data.json
         
-        # Calcular timestamp de 7 dias atrás
         seven_days_ago=$(date -u -d "7 days ago" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -v-7d +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || echo "2026-02-19T00:00:00Z")
         
         for env in DEV HOM PROD; do
@@ -16,25 +49,15 @@
           
           echo "=== Processing $env ==="
           
-          # Conectar ao cluster
           if az aks get-credentials --name $cluster --resource-group $rg --subscription $sub --overwrite-existing; then
             echo "✅ Connected to cluster $cluster"
             
-            # Buscar backups usando kubectl
             kubectl_output=$(kubectl get backups.velero.io -n velero -o json 2>&1)
             
             if echo "$kubectl_output" | jq -e '.items' >/dev/null 2>&1; then
-              backups=$(echo "$kubectl_output" | jq -c --arg cutoff "$seven_days_ago" '
-                [.items[] | select(.metadata.creationTimestamp >= $cutoff) | 
-                { 
-                  name: .metadata.name, 
-                  status: (.status.phase // "Unknown"), 
-                  created: .metadata.creationTimestamp, 
-                  namespaces: (.spec.includedNamespaces // ["*"])
-                }]
-              ' 2>/dev/null || echo '[]')
+              backups=$(echo "$kubectl_output" | jq -c --arg cutoff "$seven_days_ago" '[.items[] | select(.metadata.creationTimestamp >= $cutoff) | { name: .metadata.name, status: (.status.phase // "Unknown"), created: .metadata.creationTimestamp, namespaces: (.spec.includedNamespaces // ["*"])}]' 2>/dev/null || echo '[]')
               
-              if [ -z "$backups" ] || [ "$backups" = "null" ] || ! echo "$backups" | jq -e '.' >/dev/null 2>&1; then
+              if [ -z "$backups" ] || [ "$backups" = "null" ]; then
                 backups='[]'
               fi
               
@@ -49,42 +72,22 @@
             backups='[]'
           fi
           
-          # Buscar storage usage - MÉTODO CORRIGIDO
           echo "💾 Fetching storage data for $storage..."
+          blob_count=$(az storage blob list --account-name $storage --container-name velero --query "length(@)" -o tsv 2>/dev/null || echo "0")
           
-          # Método 1: Tentar Azure CLI com storage account
-          blob_count=$(az storage blob list \
-            --account-name $storage \
-            --container-name velero \
-            --query "length(@)" \
-            -o tsv 2>/dev/null || echo "0")
-          
-          # Se não funcionar, tentar container velero-backups
           if [ "$blob_count" = "0" ] || [ -z "$blob_count" ]; then
-            blob_count=$(az storage blob list \
-              --account-name $storage \
-              --container-name velero-backups \
-              --query "length(@)" \
-              -o tsv 2>/dev/null || echo "0")
+            blob_count=$(az storage blob list --account-name $storage --container-name velero-backups --query "length(@)" -o tsv 2>/dev/null || echo "0")
           fi
           
-          # Calcular tamanho total em GB
           if [ "$blob_count" != "0" ] && [ -n "$blob_count" ]; then
-            # Pegar tamanhos dos blobs
-            total_bytes=$(az storage blob list \
-              --account-name $storage \
-              --container-name velero \
-              --query "[].properties.contentLength" \
-              -o json 2>/dev/null | jq '[.[] | select(. != null)] | add // 0' 2>/dev/null || echo "0")
+            total_bytes=$(az storage blob list --account-name $storage --container-name velero --query "[].properties.contentLength" -o json 2>/dev/null | jq '[.[] | select(. != null)] | add // 0' 2>/dev/null || echo "0")
             
             if [ "$total_bytes" = "null" ] || [ -z "$total_bytes" ]; then
               total_bytes=0
             fi
             
-            # Converter para GB (bytes / 1024^3)
             storage_gb=$(echo "scale=2; $total_bytes / 1073741824" | bc 2>/dev/null || echo "0")
             
-            # Se der 0, usar estimativa baseada no número de blobs (1MB por blob)
             if [ "$storage_gb" = "0" ] || [ -z "$storage_gb" ]; then
               storage_gb=$(echo "scale=2; $blob_count * 0.001" | bc 2>/dev/null || echo "0")
             fi
@@ -94,7 +97,6 @@
           
           echo "📊 Blobs: $blob_count, Storage: ${storage_gb} GB"
           
-          # Escrever no JSON
           comma=""
           [ "$env" != "PROD" ] && comma=","
           echo "  \"$env\": {\"backups\": $backups, \"storage_gb\": $storage_gb}$comma" >> data/data.json
@@ -108,10 +110,16 @@
         cat data/data.json
         echo "======================="
         
-        # Validar JSON
         if jq -e '.' data/data.json >/dev/null 2>&1; then
           echo "✅ data.json is valid"
         else
           echo "❌ Invalid JSON!"
           exit 1
         fi
+
+    - name: Commit and push if changed
+      run: |
+        git config user.name "GitHub Actions"
+        git config user.email "actions@github.com"
+        git add data/data.json
+        git diff --quiet && git diff --staged --quiet || (git commit -m "Auto-update: $(date -u +%Y-%m-%dT%H:%M:%SZ)" && git push)
