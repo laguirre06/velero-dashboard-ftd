@@ -59,7 +59,6 @@ jobs:
 
     - name: Update data.json
       run: |
-        # Re-executar workflow de atualização
         gh workflow run update-data.yml
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
