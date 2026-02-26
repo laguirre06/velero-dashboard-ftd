@@ -25,7 +25,7 @@ jobs:
     - name: Install Velero CLI
       run: |
         wget -q -O velero.tar.gz https://github.com/vmware-tanzu/velero/releases/download/v1.17.2/velero-v1.17.2-linux-amd64.tar.gz
-        tar -zzf velero.tar.gz
+        tar -xzf velero.tar.gz
         sudo mv velero-v1.17.2-linux-amd64/velero /usr/local/bin/
         rm -rf velero.tar.gz velero-v1.17.2-linux-amd64
 
@@ -33,7 +33,7 @@ jobs:
       run: |
         mkdir -p data
         echo "{" > data/data.json
-        echo "  \"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)%", >> data/data.json
+        echo "  \"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"," >> data/data.json
         
         for env in DEV HOM PROD; do
           case $env in
@@ -43,7 +43,7 @@ jobs:
           esac
           
           az aks get-credentials --name $cluster --subscription $sub --overwrite-existing 2>/dev/null || true
-          backups=$(velero backup get -o json --since 168h 2>/dev/null | jq -c '[.items[] { name: .metadata.name, status: (.status.phase // "Unknown"), created: .metadata.creationTimestamp, namespaces: (.spec.includedNamespaces // ["*"])}]' 2>/dev/null || echo '[]')
+          backups=$(velero backup get -o json --since 168h 2>/dev/null | jq -c '[.items[] | { name: .metadata.name, status: (.status.phase // "Unknown"), created: .metadata.creationTimestamp, namespaces: (.spec.includedNamespaces // ["*"])}]' 2>/dev/null || echo '[]')
           blob_count=$(az storage blob list --account-name $storage --container-name velero-backups --query "length(@)" -o tsv 2>/dev/null || echo "0")
           storage_gb=$(echo "scale=1; $blob_count * 0.001" | bc 2>/dev/null || echo "0")
           
