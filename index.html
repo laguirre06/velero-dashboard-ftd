@@ -17,6 +17,7 @@
         .btn-success { background: #28a745; color: white; }
         .btn-danger { background: #dc3545; color: white; }
         .btn-warning { background: #ffc107; color: #333; }
+        .btn-info { background: #17a2b8; color: white; }
         .btn:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0,0,0,0.2); }
         .status-badge { padding: 5px 15px; border-radius: 20px; font-size: 12px; font-weight: bold; }
         .status-online { background: #d4edda; color: #155724; }
@@ -29,19 +30,28 @@
         .env-dev { border-color: #107c10; }
         .env-hom { border-color: #ff8c00; }
         .env-prod { border-color: #d83b01; }
+        .cluster-info { background: #f8f9fa; padding: 10px 15px; border-radius: 8px; margin-bottom: 15px; font-size: 12px; }
+        .cluster-info strong { color: #667eea; }
         .backup-item { background: #f8f9fa; padding: 15px; margin: 10px 0; border-radius: 8px; border-left: 4px solid #667eea; }
         .backup-name { font-weight: bold; color: #333; margin-bottom: 5px; }
-        .backup-actions { margin-top: 10px; display: flex; gap: 10px; }
+        .backup-actions { margin-top: 10px; display: flex; gap: 10px; flex-wrap: wrap; }
         .backup-actions .btn { padding: 5px 15px; font-size: 12px; }
         .status-badge-small { display: inline-block; padding: 3px 10px; border-radius: 10px; font-size: 10px; font-weight: bold; }
         .status-completed { background: #d4edda; color: #155724; }
+        .status-failed { background: #f8d7da; color: #721c24; }
+        .status-progress { background: #fff3cd; color: #856404; }
         .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); }
-        .modal-content { background: white; margin: 5% auto; padding: 30px; border-radius: 15px; max-width: 600px; }
-        .close { float: right; font-size: 28px; cursor: pointer; }
+        .modal-content { background: white; margin: 5% auto; padding: 30px; border-radius: 15px; max-width: 600px; max-height: 90vh; overflow-y: auto; }
+        .close { float: right; font-size: 28px; cursor: pointer; color: #999; }
+        .close:hover { color: #333; }
         .form-group { margin-bottom: 15px; }
-        .form-group label { display: block; margin-bottom: 5px; font-weight: bold; }
-        .form-group input, .form-group select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: bold; color: #333; }
+        .form-group input, .form-group select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px; }
+        .form-group small { color: #666; font-size: 11px; display: block; margin-top: 5px; }
         .loading { text-align: center; padding: 40px; }
+        .error { color: #dc3545; background: #ffe6e6; padding: 15px; border-radius: 8px; margin: 10px 0; }
+        .success { color: #28a745; background: #d4edda; padding: 15px; border-radius: 8px; margin: 10px 0; }
+        .info-box { background: #e7f3ff; padding: 15px; border-radius: 8px; margin: 10px 0; border-left: 4px solid #0078d4; }
     </style>
 </head>
 <body>
@@ -51,7 +61,6 @@
             <div class="controls">
                 <span id="statusBadge" class="status-badge status-online">🟢 Online</span>
                 <button class="btn btn-primary" onclick="loadData()">🔄 Atualizar</button>
-                <button class="btn btn-success" onclick="showCreateModal()">➕ Criar Backup</button>
             </div>
         </div>
 
@@ -69,30 +78,98 @@
         <div class="modal-content">
             <span class="close" onclick="closeModal('createModal')">&times;</span>
             <h2>➕ Criar Novo Backup</h2>
+            
+            <div class="info-box">
+                <strong>📋 Informações:</strong><br>
+                O nome do backup seguirá o padrão: <code>{env}-manual-{timestamp}</code><br>
+                Exemplo: <code>dev-manual-20260226-143000</code>
+            </div>
+
             <form onsubmit="createBackup(event)">
                 <div class="form-group">
-                    <label>Ambiente:</label>
-                    <select id="createEnv" required>
-                        <option value="DEV">DEV</option>
-                        <option value="HOM">HOM</option>
-                        <option value="PROD">PROD</option>
+                    <label>Ambiente: <span style="color: #dc3545;">*</span></label>
+                    <select id="createEnv" required onchange="updateBackupName()">
+                        <option value="">Selecione...</option>
+                        <option value="DEV">DEV - aks-core-dev</option>
+                        <option value="HOM">HOM - aks-core-hom</option>
+                        <option value="PROD">PROD - aks-core-prod</option>
                     </select>
+                    <small>Cluster onde o backup será criado</small>
                 </div>
+
                 <div class="form-group">
-                    <label>Namespace (opcional):</label>
-                    <input type="text" id="createNamespace" placeholder="* para todos">
+                    <label>Namespace: <span style="color: #dc3545;">*</span></label>
+                    <select id="createNamespace" required>
+                        <option value="*">* (Todos os namespaces)</option>
+                        <option value="default">default</option>
+                        <option value="velero">velero</option>
+                        <option value="kube-system">kube-system</option>
+                        <option value="kube-public">kube-public</option>
+                    </select>
+                    <small>Selecione o namespace ou "*" para todos</small>
                 </div>
+
                 <div class="form-group">
                     <label>Nome do Backup (opcional):</label>
                     <input type="text" id="createName" placeholder="Gera automático se vazio">
+                    <small>Formato sugerido: {env}-manual-{YYYYMMDD-HHMMSS}</small>
                 </div>
-                <button type="submit" class="btn btn-success">✅ Criar Backup</button>
+
+                <div class="form-group">
+                    <label>TTL (Tempo de Vida):</label>
+                    <select id="createTTL">
+                        <option value="168">7 dias (padrão)</option>
+                        <option value="720">30 dias</option>
+                        <option value="2160">90 dias</option>
+                    </select>
+                    <small>Tempo que o backup será mantido</small>
+                </div>
+
+                <button type="submit" class="btn btn-success" style="width: 100%;">✅ Criar Backup</button>
             </form>
+        </div>
+    </div>
+
+    <!-- Modal Detalhes do Cluster -->
+    <div id="clusterModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('clusterModal')">&times;</span>
+            <h2>📊 Detalhes do Cluster</h2>
+            <div id="clusterDetails"></div>
         </div>
     </div>
 
     <script>
         const DATA_URL = 'data/data.json';
+        
+        // Informações dos clusters
+        const clusterInfo = {
+            'DEV': {
+                name: 'aks-core-dev',
+                cluster: 'aks-core-dev',
+                resourceGroup: 'rg-core-capabilities-aks-dev',
+                subscription: '57fb5e7c-3a3c-459f-857d-3914d34e6062',
+                location: 'Brazil South',
+                authInfo: 'clusterUser_rg-core-capabilities-aks-dev_aks-core-dev'
+            },
+            'HOM': {
+                name: 'aks-core-hom',
+                cluster: 'aks-core-hom',
+                resourceGroup: 'rg-core-capabilities-aks-hom',
+                subscription: '57fb5e7c-3a3c-459f-857d-3914d34e6062',
+                location: 'East US',
+                authInfo: 'clusterUser_rg-core-capabilities-aks-hom_aks-core-hom'
+            },
+            'PROD': {
+                name: 'aks-core-prod',
+                cluster: 'aks-core-prod',
+                resourceGroup: 'rg-core-capabilities-aks-prod',
+                subscription: '6c737912-b263-4f31-86a4-8f93c351fcac',
+                location: 'Brazil South',
+                authInfo: 'clusterUser_rg-core-capabilities-aks-prod_aks-core-prod'
+            }
+        };
+
         const environments = ['DEV', 'HOM', 'PROD'];
         let charts = {};
         let currentData = null;
@@ -118,6 +195,21 @@
             badge.textContent = status === 'online' ? '🟢 Online' : '🔴 Offline';
         }
 
+        function updateBackupName() {
+            const env = document.getElementById('createEnv').value;
+            if (env) {
+                const now = new Date();
+                const timestamp = now.getFullYear() + 
+                                 String(now.getMonth()+1).padStart(2,'0') + 
+                                 String(now.getDate()).padStart(2,'0') + '-' +
+                                 String(now.getHours()).padStart(2,'0') + 
+                                 String(now.getMinutes()).padStart(2,'0') + 
+                                 String(now.getSeconds()).padStart(2,'0');
+                const suggestedName = `${env.toLowerCase()}-manual-${timestamp}`;
+                document.getElementById('createName').placeholder = `Sugestão: ${suggestedName}`;
+            }
+        }
+
         function renderDashboard(data) {
             const container = document.getElementById('environments');
             container.innerHTML = '';
@@ -127,6 +219,7 @@
             environments.forEach(env => {
                 const envData = data[env] || { backups: [], storage_gb: 0 };
                 const backups = envData.backups || [];
+                const info = clusterInfo[env];
                 
                 totalBackups += backups.length;
                 totalSuccess += backups.filter(b => b.status === 'Completed').length;
@@ -145,8 +238,9 @@
                                 ✅ Status: <span class="status-badge-small status-${b.status.toLowerCase()}">${b.status}</span>
                             </div>
                             <div class="backup-actions">
-                                <button class="btn btn-warning" onclick="alert('Funcionalidade em desenvolvimento: Restore do backup ${b.name}')">🔄 Restaurar</button>
-                                <button class="btn btn-danger" onclick="alert('Funcionalidade em desenvolvimento: Delete do backup ${b.name}')">🗑️ Excluir</button>
+                                <button class="btn btn-warning" onclick="showRestoreModal('${env}', '${b.name}')">🔄 Restaurar</button>
+                                <button class="btn btn-danger" onclick="showDeleteModal('${env}', '${b.name}')">🗑️ Excluir</button>
+                                <button class="btn btn-info" onclick="showBackupDetails('${env}', '${b.name}')">📋 Detalhes</button>
                             </div>
                         </div>
                       `).join('')
@@ -155,14 +249,28 @@
                 envDiv.innerHTML = `
                     <div class="env-header env-${env.toLowerCase()}">
                         <div style="font-size: 20px; font-weight: bold;">🔹 ${env}</div>
-                        <div>Storage: <strong>${(envData.storage_gb || 0).toFixed(1)} GB</strong> | Backups: <strong>${backups.length}</strong></div>
+                        <div>
+                            <button class="btn btn-success" onclick="showCreateModal('${env}')" style="margin-right: 10px;">➕ Criar Backup</button>
+                            <button class="btn btn-info" onclick="showClusterDetails('${env}')">📊 Cluster Info</button>
+                        </div>
                     </div>
+                    
+                    <div class="cluster-info">
+                        <strong>🖥️ Cluster:</strong> ${info.name}<br>
+                        <strong>📂 Resource Group:</strong> ${info.resourceGroup}<br>
+                        <strong>🌍 Location:</strong> ${info.location}<br>
+                        <strong>🔑 Auth:</strong> ${info.authInfo}
+                    </div>
+
                     <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 20px;">
                         <div style="text-align: center; padding: 20px;">
                             <div style="font-size: 48px; font-weight: bold; color: ${env === 'DEV' ? '#107c10' : env === 'HOM' ? '#ff8c00' : '#d83b01'};">
                                 ${backups.filter(b => b.status === 'Completed').length}/${backups.length}
                             </div>
                             <div style="color: #666;">Sucesso/Total</div>
+                            <div style="margin-top: 10px; font-size: 12px; color: #666;">
+                                Storage: ${(envData.storage_gb || 0).toFixed(1)} GB
+                            </div>
                         </div>
                         <div>${backupListHtml}</div>
                     </div>
@@ -176,8 +284,44 @@
             document.getElementById('totalStorage').textContent = totalStorage.toFixed(1) + ' GB';
         }
 
-        function showCreateModal() {
+        function showCreateModal(env = '') {
+            if (env) {
+                document.getElementById('createEnv').value = env;
+                updateBackupName();
+            }
             document.getElementById('createModal').style.display = 'block';
+        }
+
+        function showClusterDetails(env) {
+            const info = clusterInfo[env];
+            const details = document.getElementById('clusterDetails');
+            details.innerHTML = `
+                <div class="info-box">
+                    <h3>${env} - ${info.name}</h3>
+                    <p><strong>Cluster:</strong> ${info.cluster}</p>
+                    <p><strong>Resource Group:</strong> ${info.resourceGroup}</p>
+                    <p><strong>Subscription:</strong> ${info.subscription}</p>
+                    <p><strong>Location:</strong> ${info.location}</p>
+                    <p><strong>Auth Info:</strong> ${info.authInfo}</p>
+                </div>
+                <div style="margin-top: 20px;">
+                    <h4>📋 Comandos Úteis:</h4>
+                    <pre style="background: #f8f9fa; padding: 15px; border-radius: 8px; overflow-x: auto; font-size: 12px;">
+# Conectar ao cluster
+kubectl config use-context ${info.cluster}
+
+# Ver nodes
+kubectl get nodes -o wide
+
+# Ver backups Velero
+velero backup get
+
+# Ver schedules
+velero schedule get
+                    </pre>
+                </div>
+            `;
+            document.getElementById('clusterModal').style.display = 'block';
         }
 
         function closeModal(modalId) {
@@ -186,8 +330,78 @@
 
         async function createBackup(event) {
             event.preventDefault();
-            alert('Funcionalidade será implementada via GitHub Actions workflow!');
-            closeModal('createModal');
+            
+            const env = document.getElementById('createEnv').value;
+            const namespace = document.getElementById('createNamespace').value;
+            const backupName = document.getElementById('createName').value;
+            const ttl = document.getElementById('createTTL').value;
+
+            if (!env) {
+                alert('❌ Selecione um ambiente!');
+                return;
+            }
+
+            const confirmMsg = `Criar backup no ambiente ${env}?\n\n` +
+                              `📁 Namespace: ${namespace}\n` +
+                              `📝 Nome: ${backupName || '(automático)'}\n` +
+                              `⏰ TTL: ${ttl}h\n\n` +
+                              `O workflow será executado no GitHub Actions!`;
+
+            if (!confirm(confirmMsg)) {
+                return;
+            }
+
+            try {
+                const response = await fetch('https://api.github.com/repos/laguirre06/velero-dashboard-ftd/actions/workflows/create-backup.yml/dispatches', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': 'token ' + btoa('laguirre06:' + '${{ secrets.GH_PAT }}'),
+                        'Accept': 'application/vnd.github.v3+json'
+                    },
+                    body: JSON.stringify({
+                        ref: 'main',
+                        inputs: {
+                            environment: env,
+                            namespace: namespace,
+                            backup_name: backupName,
+                            ttl_hours: ttl
+                        }
+                    })
+                });
+
+                if (response.ok) {
+                    alert('✅ Backup iniciado com sucesso!\n\nAcompanhe em:\nhttps://github.com/laguirre06/velero-dashboard-ftd/actions');
+                    closeModal('createModal');
+                    loadData();
+                } else {
+                    throw new Error('Failed to trigger workflow');
+                }
+            } catch (error) {
+                alert('❌ Erro ao criar backup: ' + error.message + '\n\nCertifique-se de que o secret GH_PAT está configurado.');
+            }
+        }
+
+        function showRestoreModal(env, backupName) {
+            alert(`Funcionalidade de Restore será implementada!\n\nAmbiente: ${env}\nBackup: ${backupName}`);
+        }
+
+        function showDeleteModal(env, backupName) {
+            if (confirm(`⚠️ Confirmar exclusão do backup?\n\nAmbiente: ${env}\nBackup: ${backupName}\n\nEsta ação NÃO pode ser desfeita!`)) {
+                alert('Funcionalidade de Delete será implementada!');
+            }
+        }
+
+        function showBackupDetails(env, backupName) {
+            if (currentData && currentData[env]) {
+                const backup = currentData[env].backups.find(b => b.name === backupName);
+                if (backup) {
+                    alert(`Detalhes do Backup:\n\n` +
+                          `📦 Nome: ${backup.name}\n` +
+                          `🕐 Criado: ${new Date(backup.created).toLocaleString('pt-BR')}\n` +
+                          `✅ Status: ${backup.status}\n` +
+                          `📁 Namespaces: ${backup.namespaces?.join(', ') || 'Todos'}`);
+                }
+            }
         }
 
         window.onclick = function(event) {
