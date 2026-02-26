@@ -39,6 +39,14 @@ jobs:
     - name: Setup kubectl
       uses: azure/setup-kubectl@v3
 
+    - name: Install Velero CLI
+      run: |
+        wget -q -O velero.tar.gz https://github.com/vmware-tanzu/velero/releases/download/v1.17.2/velero-v1.17.2-linux-amd64.tar.gz
+        tar -xzf velero.tar.gz
+        sudo mv velero-v1.17.2-linux-amd64/velero /usr/local/bin/
+        rm -rf velero.tar.gz velero-v1.17.2-linux-amd64
+        echo "✅ Velero CLI installed"
+
     - name: Get cluster credentials
       run: |
         env="${{ github.event.inputs.environment }}"
