@@ -1,0 +1,81 @@
+name: Restore Velero Backup
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Ambiente (DEV/HOM/PROD)'
+        required: true
+        default: 'DEV'
+        type: choice
+        options:
+        - DEV
+        - HOM
+        - PROD
+      backup_name:
+        description: 'Nome do backup para restaurar'
+        required: true
+      restore_namespace:
+        description: 'Namespace de destino (deixe vazio para original)'
+        required: false
+      confirm:
+        description: 'Digite YES para confirmar o restore'
+        required: true
+
+jobs:
+  restore-backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Azure CLI
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    - name: Setup kubectl
+      uses: azure/setup-kubectl@v3
+
+    - name: Get cluster credentials
+      run: |
+        env="${{ github.event.inputs.environment }}"
+        case $env in
+          DEV) cluster="aks-core-dev"; rg="rg-core-capabilities-aks-dev"; sub="57fb5e7c-3a3c-459f-857d-3914d34e6062" ;;
+          HOM) cluster="aks-core-hom"; rg="rg-core-capabilities-aks-hom"; sub="57fb5e7c-3a3c-459f-857d-3914d34e6062" ;;
+          PROD) cluster="aks-core-prod"; rg="rg-core-capabilities-aks-prod"; sub="6c737912-b263-4f31-86a4-8f93c351fcac" ;;
+        esac
+        
+        az aks get-credentials --name $cluster --resource-group $rg --subscription $sub --overwrite-existing
+
+    - name: Validate confirmation
+      run: |
+        if [ "${{ github.event.inputs.confirm }}" != "YES" ]; then
+          echo "❌ Restore cancelled. Confirmation required."
+          exit 1
+        fi
+
+    - name: Restore backup
+      run: |
+        backup_name="${{ github.event.inputs.backup_name }}"
+        restore_namespace="${{ github.event.inputs.restore_namespace }}"
+        env="${{ github.event.inputs.environment }}"
+        restore_name="${env}-restore-$(date +%Y%m%d-%H%M%S)"
+        
+        if [ -z "$restore_namespace" ]; then
+          echo "🔄 Restoring $backup_name to original namespace..."
+          velero restore create $restore_name --from-backup $backup_name --wait
+        else
+          echo "🔄 Restoring $backup_name to namespace $restore_namespace..."
+          velero restore create $restore_name --from-backup $backup_name --namespace-mappings default:$restore_namespace --wait
+        fi
+        
+        echo "✅ Restore completed successfully!"
+
+    - name: Update data.json
+      run: |
+        gh workflow run update-data.yml
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

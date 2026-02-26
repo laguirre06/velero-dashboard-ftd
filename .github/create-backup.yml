@@ -1,0 +1,74 @@
+name: Create Velero Backup
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Ambiente (DEV/HOM/PROD)'
+        required: true
+        default: 'DEV'
+        type: choice
+        options:
+        - DEV
+        - HOM
+        - PROD
+      namespace:
+        description: 'Namespace (deixe * para todos)'
+        required: false
+        default: '*'
+      backup_name:
+        description: 'Nome do backup (opcional - gera automático se vazio)'
+        required: false
+
+jobs:
+  create-backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Azure CLI
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    - name: Setup kubectl
+      uses: azure/setup-kubectl@v3
+
+    - name: Get cluster credentials
+      run: |
+        env="${{ github.event.inputs.environment }}"
+        case $env in
+          DEV) cluster="aks-core-dev"; rg="rg-core-capabilities-aks-dev"; sub="57fb5e7c-3a3c-459f-857d-3914d34e6062" ;;
+          HOM) cluster="aks-core-hom"; rg="rg-core-capabilities-aks-hom"; sub="57fb5e7c-3a3c-459f-857d-3914d34e6062" ;;
+          PROD) cluster="aks-core-prod"; rg="rg-core-capabilities-aks-prod"; sub="6c737912-b263-4f31-86a4-8f93c351fcac" ;;
+        esac
+        
+        az aks get-credentials --name $cluster --resource-group $rg --subscription $sub --overwrite-existing
+
+    - name: Create backup
+      run: |
+        env="${{ github.event.inputs.environment }}"
+        namespace="${{ github.event.inputs.namespace }}"
+        backup_name="${{ github.event.inputs.backup_name }}"
+        
+        if [ -z "$backup_name" ]; then
+          backup_name="${env}-manual-$(date +%Y%m%d-%H%M%S)"
+        fi
+        
+        if [ "$namespace" = "*" ]; then
+          velero backup create $backup_name --wait
+        else
+          velero backup create $backup_name --include-namespaces $namespace --wait
+        fi
+        
+        echo "✅ Backup $backup_name created successfully!"
+
+    - name: Update data.json
+      run: |
+        # Re-executar workflow de atualização de dados
+        gh workflow run update-data.yml
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
