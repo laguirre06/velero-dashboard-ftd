@@ -1,6 +1,6 @@
 {
-  "timestamp": "2026-02-26T00:00:00Z",
-  "DEV": { "backups": [], "storage_gb": 0 },
-  "HOM": { "backups": [], "storage_gb": 0 },
-  "PROD": { "backups": [], "storage_gb": 0 }
+  "timestamp": "2026-02-26T13:50:42Z",
+  "DEV": {"backups": , "storage_gb": 0},
+  "HOM": {"backups": , "storage_gb": 0},
+  "PROD": {"backups": , "storage_gb": 0}
 }
