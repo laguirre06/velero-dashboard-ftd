@@ -5,6 +5,9 @@ on:
     - cron: '0 */6 * * *'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   update-data:
     runs-on: ubuntu-latest
@@ -35,55 +38,92 @@ jobs:
         echo "{" > data/data.json
         echo "  \"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"," >> data/data.json
         
+        # Calcular timestamp de 7 dias atrás
+        seven_days_ago=$(date -u -d "7 days ago" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -v-7d +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || echo "2026-02-19T00:00:00Z")
+        
         for env in DEV HOM PROD; do
           case $env in
-            DEV) cluster="aks-core-dev"; sub="57fb5e7c-3a3c-459f-857d-3914d34e6062"; storage="aksbackupdev52857" ;;
-            HOM) cluster="aks-core-hom"; sub="57fb5e7c-3a3c-459f-857d-3914d34e6062"; storage="aksbackuphom19041" ;;
-            PROD) cluster="aks-core-prod"; sub="6c737912-b263-4f31-86a4-8f93c351fcac"; storage="aksbackupprod25668" ;;
+            DEV) cluster="aks-core-dev"; sub="57fb5e7c-3a3c-459f-857d-3914d34e6062"; rg="rg-core-capabilities-aks-dev"; storage="aksbackupdev52857" ;;
+            HOM) cluster="aks-core-hom"; sub="57fb5e7c-3a3c-459f-857d-3914d34e6062"; rg="rg-core-capabilities-aks-hom"; storage="aksbackuphom19041" ;;
+            PROD) cluster="aks-core-prod"; sub="6c737912-b263-4f31-86a4-8f93c351fcac"; rg="rg-core-capabilities-aks-prod"; storage="aksbackupprod25668" ;;
           esac
           
-          echo "Processing $env ($cluster)..."
+          echo "=== Processing $env ==="
+          echo "Cluster: $cluster"
+          echo "Subscription: $sub"
+          echo "Resource Group: $rg"
+          echo "Storage: $storage"
           
-          # Conectar ao cluster
-          if ! az aks get-credentials --name $cluster --subscription $sub --overwrite-existing; then
-            echo "Warning: Could not connect to cluster $cluster"
-          fi
-          
-          # Buscar backups do Velero
-          echo "Fetching Velero backups..."
-          if velero_output=$(velero backup get -o json --since 168h 2>&1); then
-            echo "Velero output received"
-            # Processar com jq
-            backups=$(echo "$velero_output" | jq -c '[.items[] | { name: .metadata.name, status: (.status.phase // "Unknown"), created: .metadata.creationTimestamp, namespaces: (.spec.includedNamespaces // ["*"])}]' 2>/dev/null || echo '[]')
+          # Conectar ao cluster (COM RESOURCE GROUP!)
+          if az aks get-credentials --name $cluster --resource-group $rg --subscription $sub --overwrite-existing; then
+            echo "✅ Connected to cluster $cluster"
+            
+            # Buscar backups usando kubectl (velero CLI não suporta --since)
+            echo "📦 Fetching Velero backups via kubectl..."
+            kubectl_output=$(kubectl get backups.velero.io -n velero -o json 2>&1)
+            
+            if echo "$kubectl_output" | jq -e '.items' >/dev/null 2>&1; then
+              echo "📊 Processing backups with jq..."
+              backups=$(echo "$kubectl_output" | jq -c --arg cutoff "$seven_days_ago" '
+                [.items[] | select(.metadata.creationTimestamp >= $cutoff) | 
+                { 
+                  name: .metadata.name, 
+                  status: (.status.phase // "Unknown"), 
+                  created: .metadata.creationTimestamp, 
+                  namespaces: (.spec.includedNamespaces // ["*"])
+                }]
+              ' 2>/dev/null || echo '[]')
+            else
+              echo "⚠️ No valid backups found or kubectl output invalid"
+              backups='[]'
+            fi
+            
+            # Garantir que backups seja um array válido JSON
+            if [ -z "$backups" ] || [ "$backups" = "null" ] || ! echo "$backups" | jq -e '.' >/dev/null 2>&1; then
+              echo "⚠️ Fixing invalid backups JSON"
+              backups='[]'
+            fi
+            
+            backup_count=$(echo "$backups" | jq 'length' 2>/dev/null || echo "0")
+            echo "✅ Found $backup_count backups in last 7 days"
           else
-            echo "Warning: Velero command failed or no backups found"
+            echo "❌ Warning: Could not connect to cluster $cluster"
             backups='[]'
-          fi
-          
-          # Garantir que backups seja um array válido
-          if [ -z "$backups" ] || [ "$backups" = "null" ]; then
-            backups='[]'
+            backup_count=0
           fi
           
           # Buscar storage usage
-          echo "Fetching storage data..."
+          echo "💾 Fetching storage data for $storage..."
           blob_count=$(az storage blob list --account-name $storage --container-name velero-backups --query "length(@)" -o tsv 2>/dev/null || echo "0")
           if [ -z "$blob_count" ] || [ "$blob_count" = "null" ]; then
             blob_count=0
           fi
           storage_gb=$(echo "scale=1; $blob_count * 0.001" | bc 2>/dev/null || echo "0")
           
-          echo "Backups: $backups, Storage: ${storage_gb} GB"
+          echo "📊 Storage: ${storage_gb} GB ($blob_count blobs)"
           
+          # Escrever no JSON
           comma=""
           [ "$env" != "PROD" ] && comma=","
           echo "  \"$env\": {\"backups\": $backups, \"storage_gb\": $storage_gb}$comma" >> data/data.json
+          
+          echo "✅ Completed $env"
+          echo ""
         done
         
         echo "}" >> data/data.json
         
-        echo "Final data.json:"
+        echo "=== Final data.json ==="
         cat data/data.json
+        echo "======================="
+        
+        # Validar JSON final
+        if jq -e '.' data/data.json >/dev/null 2>&1; then
+          echo "✅ data.json is valid JSON"
+        else
+          echo "❌ ERROR: data.json is INVALID JSON!"
+          exit 1
+        fi
 
     - name: Commit and push if changed
       run: |
