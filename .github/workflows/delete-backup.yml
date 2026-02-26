@@ -16,11 +16,15 @@ on:
         description: 'Nome exato do backup para deletar'
         required: true
 
+permissions:
+  contents: write
+  actions: write
+
 jobs:
   delete-backup:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    
+
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
@@ -55,6 +59,7 @@ jobs:
 
     - name: Update data.json
       run: |
+        # Re-executar workflow de atualização
         gh workflow run update-data.yml
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
