@@ -59,11 +59,12 @@ jobs:
     - name: Create backup
       run: |
         env="${{ github.event.inputs.environment }}"
+        env_lower="${env,,}"  # ✅ Converte para minúsculas
         namespace="${{ github.event.inputs.namespace }}"
         backup_name="${{ github.event.inputs.backup_name }}"
         
         if [ -z "$backup_name" ]; then
-          backup_name="${env}-manual-$(date +%Y%m%d-%H%M%S)"
+          backup_name="${env_lower}-manual-$(date +%Y%m%d-%H%M%S)"
         fi
         
         if [ "$namespace" = "*" ]; then
@@ -76,7 +77,6 @@ jobs:
 
     - name: Update data.json
       run: |
-        # Re-executar workflow de atualização de dados
         gh workflow run update-data.yml
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
