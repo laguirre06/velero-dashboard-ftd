@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="refresh" content="300">
     <title>Velero Backup Dashboard - FTD</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; padding: 20px; color: #333; }
@@ -57,41 +57,108 @@
         const DATA_URL = 'data/data.json';
         const environments = ['DEV', 'HOM', 'PROD'];
         let charts = {};
+
         async function loadData() {
             try {
                 const response = await fetch(DATA_URL + '?t=' + Date.now());
+                if (!response.ok) {
+                    throw new Error('HTTP ' + response.status);
+                }
                 const data = await response.json();
                 renderDashboard(data);
             } catch (error) {
                 console.error('Erro ao carregar dados:', error);
-                document.getElementById('environments').innerHTML = '<div class="error">Erro ao carregar dados. Atualize a pagina.</div>';
+                document.getElementById('environments').innerHTML = '<div class="error">Erro ao carregar dados. Tente atualizar a pagina (Ctrl+Shift+R).</div>';
             }
         }
+
         function renderDashboard(data) {
             const container = document.getElementById('environments');
             container.innerHTML = '';
+            
             let totalBackups = 0, totalSuccess = 0, totalFailed = 0, totalStorage = 0, activeEnvs = 0;
+
             environments.forEach(env => {
                 const envData = data[env] || { backups: [], storage_gb: 0 };
-                const backupStats = envData.backups.reduce((acc, b) => { acc.total++; if (b.status === 'Completed') acc.completed++; if (b.status === 'Failed') acc.failed++; return acc; }, { total: 0, completed: 0, failed: 0 });
-                totalBackups += backupStats.total; totalSuccess += backupStats.completed; totalFailed += backupStats.failed; totalStorage += envData.storage_gb || 0; if (backupStats.total > 0) activeEnvs++;
+                const backupStats = (envData.backups || []).reduce((acc, b) => { 
+                    acc.total++; 
+                    if (b.status === 'Completed') acc.completed++; 
+                    if (b.status === 'Failed') acc.failed++; 
+                    return acc; 
+                }, { total: 0, completed: 0, failed: 0 });
+
+                totalBackups += backupStats.total; 
+                totalSuccess += backupStats.completed; 
+                totalFailed += backupStats.failed; 
+                totalStorage += envData.storage_gb || 0; 
+                if (backupStats.total > 0) activeEnvs++;
+
                 const envDiv = document.createElement('div');
                 envDiv.className = 'env-section env-' + env.toLowerCase();
-                envDiv.innerHTML = '<div class="env-header env-' + env.toLowerCase() + '"><div class="env-title">' + env + '</div><div style="font-size:13px;color:#666">Storage: <strong>' + (envData.storage_gb||0).toFixed(1) + ' GB</strong> | Backups: <strong>' + backupStats.total + '</strong></div></div><div style="display:grid;grid-template-columns:1fr 1.5fr;gap:20px;align-items:start"><div class="chart-container"><canvas id="chart-' + env + '"></canvas></div><div class="backup-list">' + (envData.backups.length>0?envData.backups.map(b=>'<div class="backup-item"><div class="backup-name">'+b.name+'</div><div class="backup-meta">'+new Date(b.created).toLocaleString('pt-BR')+'<br>'+(b.namespaces?.join(', ')||'Todos') +'<br>Status: <span class="status-badge status-'+b.status.toLowerCase()+'>'+b.status+'</span></div></div>').join(''):'<div style="color:#999;font-size:13px;padding:20px">Nenhum backup nos ultimos 7 dias</div>') + '</div></div>';
+                
+                const backupListHtml = (envData.backups && envData.backups.length > 0) 
+                    ? envData.backups.map(b => 
+                        '<div class="backup-item">' +
+                        '<div class="backup-name">' + (b.name || 'Unknown') + '</div>' +
+                        '<div class="backup-meta">' +
+                        '🕐 ' + (b.created ? new Date(b.created).toLocaleString('pt-BR') : 'N/A') + '<br>' +
+                        '📁 ' + ((b.namespaces && b.namespaces.join) ? b.namespaces.join(', ') : 'Todos') + '<br>' +
+                        '✅ Status: <span class="status-badge status-' + (b.status ? b.status.toLowerCase() : 'unknown') + '">' + (b.status || 'Unknown') + '</span>' +
+                        '</div></div>'
+                      ).join('')
+                    : '<div style="color:#999;font-size:13px;padding:20px">Nenhum backup nos ultimos 7 dias</div>';
+
+                envDiv.innerHTML = 
+                    '<div class="env-header env-' + env.toLowerCase() + '">' +
+                    '<div class="env-title">🔹 ' + env + '</div>' +
+                    '<div style="font-size:13px;color:#666">Storage: <strong>' + (envData.storage_gb || 0).toFixed(1) + ' GB</strong> | Backups: <strong>' + backupStats.total + '</strong></div>' +
+                    '</div>' +
+                    '<div style="display:grid;grid-template-columns:1fr 1.5fr;gap:20px;align-items:start">' +
+                    '<div class="chart-container"><canvas id="chart-' + env + '"></canvas></div>' +
+                    '<div class="backup-list">' + backupListHtml + '</div>' +
+                    '</div>';
+                
                 container.appendChild(envDiv);
                 createChart(env, backupStats);
             });
+
+            // Atualizar estatísticas gerais
             document.getElementById('totalBackups').textContent = totalBackups;
-            document.getElementById('successRate').textContent = totalBackups>0?((totalSuccess/totalBackups)*100).toFixed(0)+'%':'0%';
-            document.getElementById('totalStorage').textContent = totalStorage.toFixed(1) + ' GB';
+            document.getElementById('successRate').textContent = totalBackups > 0 ? ((totalSuccess/totalBackups)*100).toFixed(0) + '%' : '0%';
+            document.getElementById('totalStorage').textContent = (totalStorage || 0).toFixed(1) + ' GB';
             document.getElementById('activeEnvs').textContent = activeEnvs;
-            document.getElementById('lastUpdate').textContent = 'Ultima atualizacao: ' + new Date(data.timestamp).toLocaleString('pt-BR');
+            document.getElementById('lastUpdate').textContent = 'Ultima atualizacao: ' + (data.timestamp ? new Date(data.timestamp).toLocaleString('pt-BR') : 'N/A');
         }
+
         function createChart(env, stats) {
-            const ctx = document.getElementById('chart-' + env); if (!ctx) return; if (charts[env]) charts[env].destroy();
-            const inProgress = Math.max(0, stats.total - stats.completed - stats.failed);
-            charts[env] = new Chart(ctx, { type: 'doughnut', data: { labels: ['Sucesso','Falhas','Em Progresso'], datasets: [{ data: [stats.completed, stats.failed, inProgress], backgroundColor: ['#107c10','#d83b01','#ff8c00'], borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false, cutout: '70%', plugins: { legend: { position: 'bottom', labels: { font: { size: 10 } } } } });
+            const ctx = document.getElementById('chart-' + env); 
+            if (!ctx) return; 
+            if (charts[env]) charts[env].destroy();
+            
+            const inProgress = Math.max(0, (stats.total || 0) - (stats.completed || 0) - (stats.failed || 0));
+            
+            charts[env] = new Chart(ctx, { 
+                type: 'doughnut', 
+                data: { 
+                    labels: ['Sucesso','Falhas','Em Progresso'], 
+                    datasets: [{ 
+                        data: [(stats.completed || 0), (stats.failed || 0), inProgress], 
+                        backgroundColor: ['#107c10','#d83b01','#ff8c00'], 
+                        borderWidth: 0 
+                    }] 
+                }, 
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false, 
+                    cutout: '70%', 
+                    plugins: { 
+                        legend: { position: 'bottom', labels: { font: { size: 10 } } } 
+                    } 
+                } 
+            });
         }
+
+        // Carregar ao iniciar
         window.onload = loadData;
     </script>
 </body>
