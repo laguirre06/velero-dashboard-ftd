@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-03-28T12:45:30Z",
+  "timestamp": "2026-03-28T18:35:02Z",
   "DEV": {"backups": [{"name":"dev-manual-backup-20260327173031","status":"Completed","created":"2026-03-27T20:30:51Z","namespaces":["*"]}], "storage_gb": 0},
   "HOM": {"backups": [{"name":"hom-weekly-backup-20260322030005","status":"Completed","created":"2026-03-22T03:00:05Z","namespaces":["*"]}], "storage_gb": 0},
   "PROD": {"backups": [{"name":"prod-weekly-backup-20260322030020","status":"Completed","created":"2026-03-22T03:00:20Z","namespaces":["*"]}], "storage_gb": 0}
