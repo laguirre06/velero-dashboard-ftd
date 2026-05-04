@@ -1,6 +1,6 @@
 {
-  "timestamp": "2026-05-02T02:24:12Z",
-  "DEV": {"backups": [{"name":"dev-weekly-backup-20260427091026","status":"Completed","created":"2026-04-27T09:10:26Z","namespaces":["*"]}], "storage_gb": 0},
-  "HOM": {"backups": [{"name":"hom-weekly-backup-20260427091013","status":"Completed","created":"2026-04-27T09:10:13Z","namespaces":["*"]}], "storage_gb": 0},
-  "PROD": {"backups": [{"name":"prod-weekly-backup-20260426030055","status":"Completed","created":"2026-04-26T03:00:55Z","namespaces":["*"]}], "storage_gb": 0}
+  "timestamp": "2026-05-04T13:49:12Z",
+  "DEV": {"backups": [{"name":"dev-weekly-backup-20260504012821","status":"Completed","created":"2026-05-04T01:28:23Z","namespaces":["*"]}], "storage_gb": 0},
+  "HOM": {"backups": [{"name":"hom-weekly-backup-20260504012645","status":"Completed","created":"2026-05-04T01:26:45Z","namespaces":["*"]}], "storage_gb": 0},
+  "PROD": {"backups": [{"name":"prod-weekly-backup-20260503030014","status":"Completed","created":"2026-05-03T03:00:14Z","namespaces":["*"]}], "storage_gb": 0}
 }
