@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-06-10T20:23:51Z",
+  "timestamp": "2026-06-11T03:31:48Z",
   "DEV": {"backups": [{"name":"dev-weekly-backup-20260608090511","status":"Completed","created":"2026-06-08T09:05:11Z","namespaces":["*"]},{"name":"teste-v2-api-ftd-plataforma-dev","status":"Completed","created":"2026-06-10T11:25:39Z","namespaces":["ftd-plataforma-dev"]},{"name":"velero-restore-lab-backup","status":"Completed","created":"2026-06-10T12:05:06Z","namespaces":["velero-restore-lab"]}], "storage_gb": 0},
   "HOM": {"backups": [{"name":"hom-weekly-backup-20260608090949","status":"Failed","created":"2026-06-08T09:09:49Z","namespaces":["*"]}], "storage_gb": 0},
   "PROD": {"backups": [{"name":"prod-weekly-backup-20260607030018","status":"Completed","created":"2026-06-07T03:00:18Z","namespaces":["*"]}], "storage_gb": 0}
