@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-06-11T15:51:23Z",
+  "timestamp": "2026-06-11T20:14:59Z",
   "DEV": {"backups": [{"name":"dev-weekly-backup-20260608090511","status":"Completed","created":"2026-06-08T09:05:11Z","namespaces":["*"]},{"name":"teste-v2-api-ftd-plataforma-dev","status":"Completed","created":"2026-06-10T11:25:39Z","namespaces":["ftd-plataforma-dev"]}], "storage_gb": 0},
   "HOM": {"backups": [{"name":"hom-weekly-backup-20260608090949","status":"Failed","created":"2026-06-08T09:09:49Z","namespaces":["*"]}], "storage_gb": 0},
   "PROD": {"backups": [{"name":"prod-weekly-backup-20260607030018","status":"Completed","created":"2026-06-07T03:00:18Z","namespaces":["*"]}], "storage_gb": 0}
