@@ -1,6 +1,6 @@
 {
-  "timestamp": "2026-06-16T20:45:10Z",
-  "DEV": {"backups": [{"name":"dev-weekly-backup-20260614044257","status":"PartiallyFailed","created":"2026-06-14T04:42:57Z","namespaces":["*"]},{"name":"teste-v2-api-ftd-plataforma-dev","status":"Completed","created":"2026-06-10T11:25:39Z","namespaces":["ftd-plataforma-dev"]}], "storage_gb": 0},
-  "HOM": {"backups": [{"name":"hom-weekly-backup-20260614030021","status":"PartiallyFailed","created":"2026-06-14T03:00:21Z","namespaces":["*"]}], "storage_gb": 0},
-  "PROD": {"backups": [{"name":"prod-weekly-backup-20260614030056","status":"PartiallyFailed","created":"2026-06-14T03:00:56Z","namespaces":["*"]}], "storage_gb": 0}
+  "timestamp": "2026-06-17T10:47:23Z",
+  "DEV": {"backups": [{"name":"dev-daily-backup-20260617020026","status":"PartiallyFailed","created":"2026-06-17T02:00:26Z","namespaces":["*"]},{"name":"dev-weekly-backup-20260614044257","status":"PartiallyFailed","created":"2026-06-14T04:42:57Z","namespaces":["*"]},{"name":"teste-v2-api-ftd-plataforma-dev","status":"Completed","created":"2026-06-10T11:25:39Z","namespaces":["ftd-plataforma-dev"]}], "storage_gb": 0},
+  "HOM": {"backups": [{"name":"hom-daily-backup-20260617030015","status":"PartiallyFailed","created":"2026-06-17T03:00:15Z","namespaces":["*"]},{"name":"hom-weekly-backup-20260614030021","status":"PartiallyFailed","created":"2026-06-14T03:00:21Z","namespaces":["*"]}], "storage_gb": 0},
+  "PROD": {"backups": [{"name":"prod-daily-backup-20260617030059","status":"PartiallyFailed","created":"2026-06-17T03:00:59Z","namespaces":["*"]},{"name":"prod-weekly-backup-20260614030056","status":"PartiallyFailed","created":"2026-06-14T03:00:56Z","namespaces":["*"]}], "storage_gb": 0}
 }
